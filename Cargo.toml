@@ -1,0 +1,15 @@
+[package]
+name = "rsdd"
+version = "0.1.0"
+authors = ["Matt Wang <matt@matthewwang.me>"]
+edition = "2021"
+
+[lib]
+crate-type = ["staticlib", "cdylib"]
+
+[dependencies]
+ocaml = { version = "^1.0.0-beta" }
+rsdd = { git = "https://github.com/neuppl/rsdd", rev = "be8f005" }
+
+[build-dependencies]
+ocaml-build = {version = "^1.0.0-beta"}

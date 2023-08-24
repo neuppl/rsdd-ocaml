@@ -1,0 +1,17 @@
+(rule
+ (targets librsdd.a dllrsdd.so)
+ (deps
+  (glob_files *.rs))
+ (action
+  (progn
+   (run sh -c "cd %{project_root}/../.. && cargo build --release")
+   (run sh -c
+     "mv %{project_root}/../../target/release/librsdd.so ./dllrsdd.so 2> /dev/null || mv %{project_root}/../../target/release/librsdd.dylib ./dllrsdd.so")
+   (run mv %{project_root}/../../target/release/librsdd.a librsdd.a))))
+
+(library
+ (name rsdd)
+ (public_name rsdd)
+ (foreign_archives rsdd)
+ (c_library_flags
+  (-lpthread -lc -lm)))

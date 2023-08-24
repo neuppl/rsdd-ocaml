@@ -1,0 +1,28 @@
+name: Rust CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    strategy:
+      matrix:
+        ocaml-compiler: ["4.14"]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Set-up OCaml ${{ matrix.ocaml-compiler }}
+      uses: ocaml/setup-ocaml@v2
+      with:
+        ocaml-compiler: ${{ matrix.ocaml-compiler }}
+    - run: opam install . --deps-only --with-test
+    - run: opam exec -- dune build
+    - run: opam exec -- cargo fmt --all -- --check
+    - run: opam exec -- cargo clippy --all
