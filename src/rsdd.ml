@@ -9,6 +9,7 @@ type rsdd_bdd_builder
 type rsdd_cnf
 type rsdd_partial_model
 type rsdd_var_label
+type rsdd_wmc_params_r
 type rsdd_expected_utility
 type rsdd_wmc_params_e_u
 external mk_bdd_builder_default_order: int64 -> rsdd_bdd_builder = "mk_bdd_builder_default_order"
@@ -26,6 +27,7 @@ external bdd_eq: rsdd_bdd_builder -> rsdd_bdd_ptr -> rsdd_bdd_ptr -> bool = "bdd
 external bdd_topvar: rsdd_bdd_ptr -> int64 = "bdd_topvar"
 external bdd_low: rsdd_bdd_ptr -> rsdd_bdd_ptr = "bdd_low"
 external bdd_high: rsdd_bdd_ptr -> rsdd_bdd_ptr = "bdd_high"
+external new_wmc_params_r: (float * float) list -> rsdd_wmc_params_r = "new_wmc_params_r"
 external bdd_bb: rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model = "bdd_bb"
 external bdd_meu: rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model = "bdd_meu"
 external new_wmc_params_eu: ((float * float) * (float * float)) list -> rsdd_wmc_params_e_u = "new_wmc_params_eu"
