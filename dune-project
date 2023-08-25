@@ -1,4 +1,4 @@
-(lang dune 2.0)
+(lang dune 2.7)
 (name rsdd)
 
 (generate_opam_files true)
