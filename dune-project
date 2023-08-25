@@ -7,7 +7,7 @@
 
 (package
  (name rsdd)
- (synopsis "bindings for RSDD")
+ (synopsis "Bindings for RSDD")
  (description "OCaml bindings for the Rust Decision Diagram (RSDD) library, generated with ocaml-rs.")
  (authors "Steven Holtzen <s.holtzen@northeastern.edu>" "Matt Wang <mxw@cs.washington.edu>")
  (maintainers "Matt Wang <mxw@cs.washington.edu>")
@@ -16,4 +16,4 @@
  (depends
   (ocaml (>= "4.08.0"))
   (dune (>= "3.0"))
-  conf-rust))
+  conf-rust-2021))
