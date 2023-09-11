@@ -4,7 +4,7 @@ use rsdd::{
     builder::{bdd::RobddBuilder, cache::AllIteTable, BottomUpBuilder},
     constants::primes,
     repr::{BddPtr, Cnf, DDNNFPtr, PartialModel, VarLabel, VarOrder, WmcParams},
-    util::semirings::{ExpectedUtility, FiniteField, Semiring, RealSemiring},
+    util::semirings::{ExpectedUtility, FiniteField, RealSemiring, Semiring},
 };
 
 #[ocaml::sig]
@@ -163,15 +163,13 @@ ocaml::custom!(RsddWmcParamsR);
 
 #[ocaml::func]
 #[ocaml::sig("(float * float) list -> rsdd_wmc_params_r")]
-pub fn new_wmc_params_r(
-    weights: ocaml::List<(f64, f64)>,
-) -> ocaml::Pointer<RsddWmcParamsR> {
+pub fn new_wmc_params_r(weights: ocaml::List<(f64, f64)>) -> ocaml::Pointer<RsddWmcParamsR> {
     RsddWmcParamsR(WmcParams::new(HashMap::from_iter(
         weights
             .into_linked_list()
             .iter()
             .enumerate()
-            .map(|(index, (a,b))| {
+            .map(|(index, (a, b))| {
                 (
                     VarLabel::new(index as u64),
                     (RealSemiring(*a), RealSemiring(*b)),
