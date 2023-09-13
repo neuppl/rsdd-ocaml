@@ -15,9 +15,9 @@ use crate::{Directed, Direction, EdgeType, IntoWeightedEdge, Outgoing, Undirecte
 use crate::graph::NodeIndex as GraphNodeIndex;
 
 use crate::visit::{
-    Data, EdgeCount, GetAdjacencyMatrix, GraphBase, GraphProp, IntoEdgeReferences, IntoEdges,
-    IntoEdgesDirected, IntoNeighbors, IntoNeighborsDirected, IntoNodeIdentifiers,
-    IntoNodeReferences, NodeCount, NodeIndexable, Visitable,
+    Data, GetAdjacencyMatrix, GraphBase, GraphProp, IntoEdgeReferences, IntoEdges, IntoNeighbors,
+    IntoNeighborsDirected, IntoNodeIdentifiers, IntoNodeReferences, NodeCompactIndexable,
+    NodeCount, NodeIndexable, Visitable,
 };
 
 use crate::data::Build;
@@ -94,22 +94,18 @@ impl<T: Zero> Default for NotZero<T> {
 }
 
 impl<T: Zero> Nullable for NotZero<T> {
-    #[doc(hidden)]
     type Wrapped = T;
 
-    #[doc(hidden)]
     fn new(value: T) -> Self {
         assert!(!value.is_zero());
         NotZero(value)
     }
 
     // implemented here for optimization purposes
-    #[doc(hidden)]
     fn is_null(&self) -> bool {
         self.0.is_zero()
     }
 
-    #[doc(hidden)]
     fn as_ref(&self) -> Option<&Self::Wrapped> {
         if !self.is_null() {
             Some(&self.0)
@@ -118,7 +114,6 @@ impl<T: Zero> Nullable for NotZero<T> {
         }
     }
 
-    #[doc(hidden)]
     fn as_mut(&mut self) -> Option<&mut Self::Wrapped> {
         if !self.is_null() {
             Some(&mut self.0)
@@ -128,10 +123,10 @@ impl<T: Zero> Nullable for NotZero<T> {
     }
 }
 
-impl<T: Zero> From<NotZero<T>> for Option<T> {
-    fn from(not_zero: NotZero<T>) -> Self {
-        if !not_zero.is_null() {
-            Some(not_zero.0)
+impl<T: Zero> Into<Option<T>> for NotZero<T> {
+    fn into(self) -> Option<T> {
+        if !self.is_null() {
+            Some(self.0)
         } else {
             None
         }
@@ -159,7 +154,6 @@ macro_rules! not_zero_impl {
                 $z as $t
             }
 
-            #[allow(clippy::float_cmp)]
             fn is_zero(&self) -> bool {
                 self == &Self::zero()
             }
@@ -236,23 +230,13 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
         };
 
         debug_assert!(node_capacity <= <Ix as IndexType>::max().index());
-        if node_capacity > 0 {
-            m.extend_capacity_for_node(NodeIndex::new(node_capacity - 1), true);
-        }
+        m.extend_capacity_for_node(NodeIndex::new(node_capacity));
 
         m
     }
 
     #[inline]
-    fn to_edge_position(&self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> Option<usize> {
-        if cmp::max(a.index(), b.index()) >= self.node_capacity {
-            return None;
-        }
-        Some(self.to_edge_position_unchecked(a, b))
-    }
-
-    #[inline]
-    fn to_edge_position_unchecked(&self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> usize {
+    fn to_edge_position(&self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> usize {
         to_linearized_matrix_position::<Ty>(a.index(), b.index(), self.node_capacity)
     }
 
@@ -306,15 +290,11 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     pub fn remove_node(&mut self, a: NodeIndex<Ix>) -> N {
         for id in self.nodes.iter_ids() {
             let position = self.to_edge_position(a, NodeIndex::new(id));
-            if let Some(pos) = position {
-                self.node_adjacencies[pos] = Default::default();
-            }
+            self.node_adjacencies[position] = Default::default();
 
             if Ty::is_directed() {
                 let position = self.to_edge_position(NodeIndex::new(id), a);
-                if let Some(pos) = position {
-                    self.node_adjacencies[pos] = Default::default();
-                }
+                self.node_adjacencies[position] = Default::default();
             }
         }
 
@@ -322,12 +302,11 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     }
 
     #[inline]
-    fn extend_capacity_for_node(&mut self, min_node: NodeIndex<Ix>, exact: bool) {
+    fn extend_capacity_for_node(&mut self, min_node: NodeIndex<Ix>) {
         self.node_capacity = extend_linearized_matrix::<Ty, _>(
             &mut self.node_adjacencies,
             self.node_capacity,
-            min_node.index() + 1,
-            exact,
+            min_node.index(),
         );
     }
 
@@ -335,7 +314,7 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     fn extend_capacity_for_edge(&mut self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) {
         let min_node = cmp::max(a, b);
         if min_node.index() >= self.node_capacity {
-            self.extend_capacity_for_node(min_node, false);
+            self.extend_capacity_for_node(min_node);
         }
     }
 
@@ -349,7 +328,8 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     /// **Panics** if any of the nodes don't exist.
     pub fn update_edge(&mut self, a: NodeIndex<Ix>, b: NodeIndex<Ix>, weight: E) -> Option<E> {
         self.extend_capacity_for_edge(a, b);
-        let p = self.to_edge_position_unchecked(a, b);
+
+        let p = self.to_edge_position(a, b);
         let old_weight = mem::replace(&mut self.node_adjacencies[p], Null::new(weight));
         if old_weight.is_null() {
             self.nb_edges += 1;
@@ -359,6 +339,8 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
 
     /// Add an edge from `a` to `b` to the graph, with its associated
     /// data `weight`.
+    ///
+    /// Return the index of the new edge.
     ///
     /// Computes in **O(1)** time, best case.
     /// Computes in **O(|V|^2)** time, worst case (matrix needs to be re-allocated).
@@ -378,10 +360,10 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     /// **Panics** if any of the nodes don't exist.
     /// **Panics** if no edge exists between `a` and `b`.
     pub fn remove_edge(&mut self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> E {
-        let p = self
-            .to_edge_position(a, b)
-            .expect("No edge found between the nodes.");
-        let old_weight = mem::take(&mut self.node_adjacencies[p]).into().unwrap();
+        let p = self.to_edge_position(a, b);
+        let old_weight = mem::replace(&mut self.node_adjacencies[p], Default::default())
+            .into()
+            .unwrap();
         let old_weight: Option<_> = old_weight.into();
         self.nb_edges -= 1;
         old_weight.unwrap()
@@ -391,10 +373,8 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     ///
     /// **Panics** if any of the nodes don't exist.
     pub fn has_edge(&self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> bool {
-        if let Some(p) = self.to_edge_position(a, b) {
-            return !self.node_adjacencies[p].is_null();
-        }
-        false
+        let p = self.to_edge_position(a, b);
+        !self.node_adjacencies[p].is_null()
     }
 
     /// Access the weight for node `a`.
@@ -421,12 +401,8 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     ///
     /// **Panics** if no edge exists between `a` and `b`.
     pub fn edge_weight(&self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> &E {
-        let p = self
-            .to_edge_position(a, b)
-            .expect("No edge found between the nodes.");
-        self.node_adjacencies[p]
-            .as_ref()
-            .expect("No edge found between the nodes.")
+        let p = self.to_edge_position(a, b);
+        self.node_adjacencies[p].as_ref().unwrap()
     }
 
     /// Access the weight for edge `e`, mutably.
@@ -435,12 +411,8 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     ///
     /// **Panics** if no edge exists between `a` and `b`.
     pub fn edge_weight_mut(&mut self, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> &mut E {
-        let p = self
-            .to_edge_position(a, b)
-            .expect("No edge found between the nodes.");
-        self.node_adjacencies[p]
-            .as_mut()
-            .expect("No edge found between the nodes.")
+        let p = self.to_edge_position(a, b);
+        self.node_adjacencies[p].as_mut().unwrap()
     }
 
     /// Return an iterator of all nodes with an edge starting from `a`.
@@ -464,7 +436,7 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType>
     /// - `Undirected`: All edges connected to `a`.
     ///
     /// Produces an empty iterator if the node doesn't exist.<br>
-    /// Iterator element type is `(NodeIndex<Ix>, NodeIndex<Ix>, &E)`.
+    /// Iterator element type is [`Edges<E, Ix>`](../graph/struct.Edges.html).
     pub fn edges(&self, a: NodeIndex<Ix>) -> Edges<Ty, Null, Ix> {
         Edges::on_columns(a.index(), &self.node_adjacencies, self.node_capacity)
     }
@@ -556,7 +528,7 @@ impl<N, E, Null: Nullable<Wrapped = E>, Ix: IndexType> MatrixGraph<N, E, Directe
     /// - `Incoming`: All edges to `a`.
     ///
     /// Produces an empty iterator if the node `a` doesn't exist.<br>
-    /// Iterator element type is `(NodeIndex<Ix>, NodeIndex<Ix>, &E)`.
+    /// Iterator element type is [`EdgeReference<E, Ix>`](../graph/struct.EdgeReference.html).
     pub fn edges_directed(&self, a: NodeIndex<Ix>, d: Direction) -> Edges<Directed, Null, Ix> {
         if d == Outgoing {
             self.edges(a)
@@ -572,7 +544,6 @@ impl<N, E, Null: Nullable<Wrapped = E>, Ix: IndexType> MatrixGraph<N, E, Directe
 ///
 /// [1]: ../visit/trait.IntoNodeIdentifiers.html#tymethod.node_identifiers
 /// [2]: struct.MatrixGraph.html
-#[derive(Debug, Clone)]
 pub struct NodeIdentifiers<'a, Ix> {
     iter: IdIterator<'a>,
     ix: PhantomData<Ix>,
@@ -593,9 +564,6 @@ impl<'a, Ix: IndexType> Iterator for NodeIdentifiers<'a, Ix> {
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(NodeIndex::new)
     }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
 }
 
 /// Iterator over all nodes of a graph.
@@ -604,7 +572,6 @@ impl<'a, Ix: IndexType> Iterator for NodeIdentifiers<'a, Ix> {
 ///
 /// [1]: ../visit/trait.IntoNodeReferences.html#tymethod.node_references
 /// [2]: struct.MatrixGraph.html
-#[derive(Debug, Clone)]
 pub struct NodeReferences<'a, N: 'a, Ix> {
     nodes: &'a IdStorage<N>,
     iter: IdIterator<'a>,
@@ -629,9 +596,6 @@ impl<'a, N: 'a, Ix: IndexType> Iterator for NodeReferences<'a, N, Ix> {
             .next()
             .map(|i| (NodeIndex::new(i), &self.nodes[i]))
     }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
 }
 
 /// Iterator over all edges of a graph.
@@ -640,7 +604,6 @@ impl<'a, N: 'a, Ix: IndexType> Iterator for NodeReferences<'a, N, Ix> {
 ///
 /// [1]: ../visit/trait.IntoEdgeReferences.html#tymethod.edge_references
 /// [2]: struct.MatrixGraph.html
-#[derive(Debug, Clone)]
 pub struct EdgeReferences<'a, Ty: EdgeType, Null: 'a + Nullable, Ix> {
     row: usize,
     column: usize,
@@ -706,7 +669,6 @@ impl<'a, Ty: EdgeType, Null: Nullable, Ix: IndexType> Iterator
 ///
 /// [1]: struct.MatrixGraph.html#method.neighbors
 /// [2]: struct.MatrixGraph.html#method.neighbors_directed
-#[derive(Debug, Clone)]
 pub struct Neighbors<'a, Ty: EdgeType, Null: 'a + Nullable, Ix>(Edges<'a, Ty, Null, Ix>);
 
 impl<'a, Ty: EdgeType, Null: Nullable, Ix: IndexType> Iterator for Neighbors<'a, Ty, Null, Ix> {
@@ -715,12 +677,8 @@ impl<'a, Ty: EdgeType, Null: Nullable, Ix: IndexType> Iterator for Neighbors<'a,
     fn next(&mut self) -> Option<Self::Item> {
         self.0.next().map(|(_, b, _)| b)
     }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.0.size_hint()
-    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum NeighborIterDirection {
     Rows,
     Columns,
@@ -732,7 +690,6 @@ enum NeighborIterDirection {
 ///
 /// [1]: struct.MatrixGraph.html#method.edges
 /// [2]: struct.MatrixGraph.html#method.edges_directed
-#[derive(Debug, Clone)]
 pub struct Edges<'a, Ty: EdgeType, Null: 'a + Nullable, Ix> {
     iter_direction: NeighborIterDirection,
     node_adjacencies: &'a [Null],
@@ -812,16 +769,12 @@ fn to_linearized_matrix_position<Ty: EdgeType>(row: usize, column: usize, width:
 fn extend_linearized_matrix<Ty: EdgeType, T: Default>(
     node_adjacencies: &mut Vec<T>,
     old_node_capacity: usize,
-    new_capacity: usize,
-    exact: bool,
+    min_node_capacity: usize,
 ) -> usize {
-    if old_node_capacity >= new_capacity {
-        return old_node_capacity;
-    }
     if Ty::is_directed() {
-        extend_flat_square_matrix(node_adjacencies, old_node_capacity, new_capacity, exact)
+        extend_flat_square_matrix(node_adjacencies, old_node_capacity, min_node_capacity)
     } else {
-        extend_lower_triangular_matrix(node_adjacencies, new_capacity)
+        extend_lower_triangular_matrix(node_adjacencies, min_node_capacity)
     }
 }
 
@@ -834,42 +787,29 @@ fn to_flat_square_matrix_position(row: usize, column: usize, width: usize) -> us
 fn extend_flat_square_matrix<T: Default>(
     node_adjacencies: &mut Vec<T>,
     old_node_capacity: usize,
-    new_node_capacity: usize,
-    exact: bool,
+    min_node_capacity: usize,
 ) -> usize {
-    // Grow the capacity by exponential steps to avoid repeated allocations.
-    // Disabled for the with_capacity constructor.
-    let new_node_capacity = if exact {
-        new_node_capacity
-    } else {
-        const MIN_CAPACITY: usize = 4;
-        cmp::max(new_node_capacity.next_power_of_two(), MIN_CAPACITY)
-    };
+    let min_node_capacity = (min_node_capacity + 1).next_power_of_two();
 
     // Optimization: when resizing the matrix this way we skip the first few grows to make
     // small matrices a bit faster to work with.
+    const MIN_CAPACITY: usize = 4;
+    let new_node_capacity = cmp::max(min_node_capacity, MIN_CAPACITY);
 
-    ensure_len(node_adjacencies, new_node_capacity.pow(2));
-    for c in (1..old_node_capacity).rev() {
+    let mut new_node_adjacencies = vec![];
+    ensure_len(&mut new_node_adjacencies, new_node_capacity.pow(2));
+
+    for c in 0..old_node_capacity {
         let pos = c * old_node_capacity;
         let new_pos = c * new_node_capacity;
-        // Move the slices directly if they do not overlap with their new position
-        if pos + old_node_capacity <= new_pos {
-            debug_assert!(pos + old_node_capacity < node_adjacencies.len());
-            debug_assert!(new_pos + old_node_capacity < node_adjacencies.len());
-            let ptr = node_adjacencies.as_mut_ptr();
-            // SAFETY: pos + old_node_capacity <= new_pos, so this won't overlap
-            unsafe {
-                let old = ptr.add(pos);
-                let new = ptr.add(new_pos);
-                core::ptr::swap_nonoverlapping(old, new, old_node_capacity);
-            }
-        } else {
-            for i in (0..old_node_capacity).rev() {
-                node_adjacencies.as_mut_slice().swap(pos + i, new_pos + i);
-            }
-        }
+
+        let mut old = &mut node_adjacencies[pos..pos + old_node_capacity];
+        let mut new = &mut new_node_adjacencies[new_pos..new_pos + old_node_capacity];
+
+        mem::swap(&mut old, &mut new);
     }
+
+    mem::swap(node_adjacencies, &mut new_node_adjacencies);
 
     new_node_capacity
 }
@@ -887,20 +827,24 @@ fn to_lower_triangular_matrix_position(row: usize, column: usize) -> usize {
 #[inline]
 fn extend_lower_triangular_matrix<T: Default>(
     node_adjacencies: &mut Vec<T>,
-    new_capacity: usize,
+    new_node_capacity: usize,
 ) -> usize {
-    let max_node = new_capacity - 1;
-    let max_pos = to_lower_triangular_matrix_position(max_node, max_node);
+    let max_pos = to_lower_triangular_matrix_position(new_node_capacity, new_node_capacity);
     ensure_len(node_adjacencies, max_pos + 1);
-    new_capacity
+    new_node_capacity + 1
 }
 
 /// Grow a Vec by appending the type's default value until the `size` is reached.
 fn ensure_len<T: Default>(v: &mut Vec<T>, size: usize) {
-    v.resize_with(size, T::default);
+    if let Some(n) = size.checked_sub(v.len()) {
+        v.reserve(n);
+        for _ in 0..n {
+            v.push(T::default());
+        }
+    }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 struct IdStorage<T> {
     elements: Vec<Option<T>>,
     upper_bound: usize,
@@ -976,7 +920,6 @@ impl<T> IndexMut<usize> for IdStorage<T> {
     }
 }
 
-#[derive(Debug, Clone)]
 struct IdIterator<'a> {
     upper_bound: usize,
     removed_ids: &'a IndexSet<usize>,
@@ -1073,15 +1016,6 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> NodeCount
     }
 }
 
-impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> EdgeCount
-    for MatrixGraph<N, E, Ty, Null, Ix>
-{
-    #[inline]
-    fn edge_count(&self) -> usize {
-        self.edge_count()
-    }
-}
-
 /// Index the `MatrixGraph` by `NodeIndex` pair to access edge weights.
 ///
 /// Also available with indexing syntax: `&graph[e]`.
@@ -1128,12 +1062,12 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> Visitable
     type Map = FixedBitSet;
 
     fn visit_map(&self) -> FixedBitSet {
-        FixedBitSet::with_capacity(self.node_bound())
+        FixedBitSet::with_capacity(self.node_count())
     }
 
     fn reset_map(&self, map: &mut Self::Map) {
         map.clear();
-        map.grow(self.node_bound());
+        map.grow(self.node_count());
     }
 }
 
@@ -1216,21 +1150,11 @@ impl<'a, N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> IntoEdg
     }
 }
 
-impl<'a, N, E, Null: Nullable<Wrapped = E>, Ix: IndexType> IntoEdgesDirected
-    for &'a MatrixGraph<N, E, Directed, Null, Ix>
-{
-    type EdgesDirected = Edges<'a, Directed, Null, Ix>;
-
-    fn edges_directed(self, a: Self::NodeId, dir: Direction) -> Self::EdgesDirected {
-        MatrixGraph::edges_directed(self, a, dir)
-    }
-}
-
 impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> NodeIndexable
     for MatrixGraph<N, E, Ty, Null, Ix>
 {
     fn node_bound(&self) -> usize {
-        self.nodes.upper_bound
+        self.node_count()
     }
 
     fn to_index(&self, ix: NodeIndex<Ix>) -> usize {
@@ -1240,6 +1164,11 @@ impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> NodeIndexab
     fn from_index(&self, ix: usize) -> Self::NodeId {
         NodeIndex::new(ix)
     }
+}
+
+impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> NodeCompactIndexable
+    for MatrixGraph<N, E, Ty, Null, Ix>
+{
 }
 
 impl<N, E, Ty: EdgeType, Null: Nullable<Wrapped = E>, Ix: IndexType> Build
@@ -1332,45 +1261,6 @@ mod tests {
         g.add_edge(b, c, ());
         assert_eq!(g.node_count(), 3);
         assert_eq!(g.edge_count(), 2);
-    }
-
-    #[test]
-    /// Adds an edge that triggers a second extension of the matrix.
-    /// From #425
-    fn test_add_edge_with_extension() {
-        let mut g = DiMatrix::<u8, ()>::new();
-        let _n0 = g.add_node(0);
-        let n1 = g.add_node(1);
-        let n2 = g.add_node(2);
-        let n3 = g.add_node(3);
-        let n4 = g.add_node(4);
-        let _n5 = g.add_node(5);
-        g.add_edge(n2, n1, ());
-        g.add_edge(n2, n3, ());
-        g.add_edge(n2, n4, ());
-        assert_eq!(g.node_count(), 6);
-        assert_eq!(g.edge_count(), 3);
-        assert!(g.has_edge(n2, n1));
-        assert!(g.has_edge(n2, n3));
-        assert!(g.has_edge(n2, n4));
-    }
-
-    #[test]
-    fn test_matrix_resize() {
-        let mut g = DiMatrix::<u8, ()>::with_capacity(3);
-        let n0 = g.add_node(0);
-        let n1 = g.add_node(1);
-        let n2 = g.add_node(2);
-        let n3 = g.add_node(3);
-        g.add_edge(n1, n0, ());
-        g.add_edge(n1, n1, ());
-        // Triggers a resize from capacity 3 to 4
-        g.add_edge(n2, n3, ());
-        assert_eq!(g.node_count(), 4);
-        assert_eq!(g.edge_count(), 3);
-        assert!(g.has_edge(n1, n0));
-        assert!(g.has_edge(n1, n1));
-        assert!(g.has_edge(n2, n3));
     }
 
     #[test]
@@ -1777,38 +1667,5 @@ mod tests {
 
         assert!(!g.has_edge(a, b));
         assert_eq!(g.edge_count(), 0);
-    }
-    #[test]
-    // From https://github.com/petgraph/petgraph/issues/523
-    fn test_tarjan_scc_with_removed_node() {
-        let mut g: MatrixGraph<(), ()> = MatrixGraph::new();
-
-        g.add_node(());
-        let b = g.add_node(());
-        g.add_node(());
-
-        g.remove_node(b);
-
-        assert_eq!(
-            crate::algo::tarjan_scc(&g),
-            [[node_index(0)], [node_index(2)]]
-        );
-    }
-
-    #[test]
-    // From https://github.com/petgraph/petgraph/issues/523
-    fn test_kosaraju_scc_with_removed_node() {
-        let mut g: MatrixGraph<(), ()> = MatrixGraph::new();
-
-        g.add_node(());
-        let b = g.add_node(());
-        g.add_node(());
-
-        g.remove_node(b);
-
-        assert_eq!(
-            crate::algo::kosaraju_scc(&g),
-            [[node_index(2)], [node_index(0)]]
-        );
     }
 }

@@ -17,7 +17,6 @@ fn petersen_iso_bench(bench: &mut Bencher) {
     let b = digraph().petersen_b();
 
     bench.iter(|| is_isomorphic(&a, &b));
-    assert!(is_isomorphic(&a, &b));
 }
 
 #[bench]
@@ -26,7 +25,6 @@ fn petersen_undir_iso_bench(bench: &mut Bencher) {
     let b = ungraph().petersen_b();
 
     bench.iter(|| is_isomorphic(&a, &b));
-    assert!(is_isomorphic(&a, &b));
 }
 
 #[bench]
@@ -35,7 +33,6 @@ fn full_iso_bench(bench: &mut Bencher) {
     let b = ungraph().full_b();
 
     bench.iter(|| is_isomorphic(&a, &b));
-    assert!(is_isomorphic(&a, &b));
 }
 
 #[bench]
@@ -44,7 +41,6 @@ fn praust_dir_no_iso_bench(bench: &mut Bencher) {
     let b = digraph().praust_b();
 
     bench.iter(|| is_isomorphic(&a, &b));
-    assert!(!is_isomorphic(&a, &b));
 }
 
 #[bench]
@@ -53,5 +49,4 @@ fn praust_undir_no_iso_bench(bench: &mut Bencher) {
     let b = ungraph().praust_b();
 
     bench.iter(|| is_isomorphic(&a, &b));
-    assert!(!is_isomorphic(&a, &b));
 }
