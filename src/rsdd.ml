@@ -27,6 +27,7 @@ external bdd_eq: rsdd_bdd_builder -> rsdd_bdd_ptr -> rsdd_bdd_ptr -> bool = "bdd
 external bdd_topvar: rsdd_bdd_ptr -> int64 = "bdd_topvar"
 external bdd_low: rsdd_bdd_ptr -> rsdd_bdd_ptr = "bdd_low"
 external bdd_high: rsdd_bdd_ptr -> rsdd_bdd_ptr = "bdd_high"
+external bdd_wmc: rsdd_bdd_ptr -> rsdd_wmc_params_r -> float = "bdd_wmc"
 external new_wmc_params_r: (float * float) list -> rsdd_wmc_params_r = "new_wmc_params_r"
 external bdd_bb: rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model = "bdd_bb"
 external bdd_meu: rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model = "bdd_meu"

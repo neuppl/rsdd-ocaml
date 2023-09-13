@@ -162,6 +162,15 @@ pub struct RsddWmcParamsR(WmcParams<RealSemiring>);
 ocaml::custom!(RsddWmcParamsR);
 
 #[ocaml::func]
+#[ocaml::sig("rsdd_bdd_ptr -> rsdd_wmc_params_r -> float")]
+pub fn bdd_wmc(
+    bdd: &RsddBddPtr,
+    wmc: &RsddWmcParamsEU,
+) -> f64 {
+    DDNNFPtr::unsmoothed_wmc(&bdd.0, &wmc.0).0
+}
+
+#[ocaml::func]
 #[ocaml::sig("(float * float) list -> rsdd_wmc_params_r")]
 pub fn new_wmc_params_r(weights: ocaml::List<(f64, f64)>) -> ocaml::Pointer<RsddWmcParamsR> {
     RsddWmcParamsR(WmcParams::new(HashMap::from_iter(
