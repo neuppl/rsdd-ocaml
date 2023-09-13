@@ -6,11 +6,9 @@ use std::marker::PhantomData;
 use std::ops::{Index, IndexMut, Range};
 use std::slice::Windows;
 
-use crate::visit::{
-    Data, EdgeCount, EdgeRef, GetAdjacencyMatrix, GraphBase, GraphProp, IntoEdgeReferences,
-    IntoEdges, IntoNeighbors, IntoNodeIdentifiers, IntoNodeReferences, NodeCompactIndexable,
-    NodeCount, NodeIndexable, Visitable,
-};
+use crate::visit::{Data, GraphProp, IntoEdgeReferences, NodeCount};
+use crate::visit::{EdgeRef, GraphBase, IntoEdges, IntoNeighbors, NodeIndexable};
+use crate::visit::{IntoNodeIdentifiers, NodeCompactIndexable, Visitable};
 
 use crate::util::zip;
 
@@ -97,9 +95,10 @@ where
         }
     }
 
-    /// Create a new `Csr` with `n` nodes. `N` must implement [`Default`] for the weight of each node.
+    /// Create a new [`Csr`] with `n` nodes. `N` must implement [`Default`] for the weight of each node.
     ///
     /// [`Default`]: https://doc.rust-lang.org/nightly/core/default/trait.Default.html
+    /// [`Csr`]: #struct.Csr.html
     ///
     /// # Example
     /// ```rust
@@ -177,9 +176,10 @@ where
         {
             let mut rows = self_.row.iter_mut();
 
+            let mut node = 0;
             let mut rstart = 0;
             let mut last_target;
-            'outer: for (node, r) in (&mut rows).enumerate() {
+            'outer: for r in &mut rows {
                 *r = rstart;
                 last_target = None;
                 'inner: loop {
@@ -221,6 +221,7 @@ where
                     }
                     iter.next();
                 }
+                node += 1;
             }
             for r in rows {
                 *r = rstart;
@@ -473,9 +474,6 @@ where
             }
         })
     }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
 }
 
 impl<N, E, Ty, Ix> Data for Csr<N, E, Ty, Ix>
@@ -507,7 +505,6 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct EdgeReferences<'a, E: 'a, Ty, Ix: 'a> {
     source_index: NodeIndex<Ix>,
     index: usize,
@@ -674,7 +671,6 @@ where
     }
 }
 
-#[derive(Debug, Clone)]
 pub struct NodeIdentifiers<Ix = DefaultIx> {
     r: Range<usize>,
     ty: PhantomData<Ix>,
@@ -719,102 +715,12 @@ where
     }
 }
 
-impl<N, E, Ty, Ix> EdgeCount for Csr<N, E, Ty, Ix>
-where
-    Ty: EdgeType,
-    Ix: IndexType,
-{
-    #[inline]
-    fn edge_count(&self) -> usize {
-        self.edge_count()
-    }
-}
-
 impl<N, E, Ty, Ix> GraphProp for Csr<N, E, Ty, Ix>
 where
     Ty: EdgeType,
     Ix: IndexType,
 {
     type EdgeType = Ty;
-}
-
-impl<'a, N, E, Ty, Ix> IntoNodeReferences for &'a Csr<N, E, Ty, Ix>
-where
-    Ty: EdgeType,
-    Ix: IndexType,
-{
-    type NodeRef = (NodeIndex<Ix>, &'a N);
-    type NodeReferences = NodeReferences<'a, N, Ix>;
-    fn node_references(self) -> Self::NodeReferences {
-        NodeReferences {
-            iter: self.node_weights.iter().enumerate(),
-            ty: PhantomData,
-        }
-    }
-}
-
-/// Iterator over all nodes of a graph.
-#[derive(Debug, Clone)]
-pub struct NodeReferences<'a, N: 'a, Ix: IndexType = DefaultIx> {
-    iter: Enumerate<SliceIter<'a, N>>,
-    ty: PhantomData<Ix>,
-}
-
-impl<'a, N, Ix> Iterator for NodeReferences<'a, N, Ix>
-where
-    Ix: IndexType,
-{
-    type Item = (NodeIndex<Ix>, &'a N);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next().map(|(i, weight)| (Ix::new(i), weight))
-    }
-
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.iter.size_hint()
-    }
-}
-
-impl<'a, N, Ix> DoubleEndedIterator for NodeReferences<'a, N, Ix>
-where
-    Ix: IndexType,
-{
-    fn next_back(&mut self) -> Option<Self::Item> {
-        self.iter
-            .next_back()
-            .map(|(i, weight)| (Ix::new(i), weight))
-    }
-}
-
-impl<'a, N, Ix> ExactSizeIterator for NodeReferences<'a, N, Ix> where Ix: IndexType {}
-
-/// The adjacency matrix for **Csr** is a bitmap that's computed by
-/// `.adjacency_matrix()`.
-impl<'a, N, E, Ty, Ix> GetAdjacencyMatrix for &'a Csr<N, E, Ty, Ix>
-where
-    Ix: IndexType,
-    Ty: EdgeType,
-{
-    type AdjMatrix = FixedBitSet;
-
-    fn adjacency_matrix(&self) -> FixedBitSet {
-        let n = self.node_count();
-        let mut matrix = FixedBitSet::with_capacity(n * n);
-        for edge in self.edge_references() {
-            let i = edge.source().index() * n + edge.target().index();
-            matrix.put(i);
-
-            let j = edge.source().index() + n * edge.target().index();
-            matrix.put(j);
-        }
-        matrix
-    }
-
-    fn is_adjacent(&self, matrix: &FixedBitSet, a: NodeIndex<Ix>, b: NodeIndex<Ix>) -> bool {
-        let n = self.edge_count();
-        let index = n * a.index() + b.index();
-        matrix.contains(index)
-    }
 }
 
 /*
@@ -835,7 +741,6 @@ Row   : [0, 2, 5]   <- value index of row start
 mod tests {
     use super::Csr;
     use crate::algo::bellman_ford;
-    use crate::algo::find_negative_cycle;
     use crate::algo::tarjan_scc;
     use crate::visit::Dfs;
     use crate::visit::VisitMap;
@@ -986,8 +891,8 @@ mod tests {
         let result = bellman_ford(&m, 0).unwrap();
         println!("{:?}", result);
         let answer = [0., 0.5, 1.5, 1.5];
-        assert_eq!(&answer, &result.distances[..4]);
-        assert!(result.distances[4..].iter().all(|&x| f64::is_infinite(x)));
+        assert_eq!(&answer, &result.0[..4]);
+        assert!(answer[4..].iter().all(|&x| f64::is_infinite(x)));
     }
 
     #[test]
@@ -1004,59 +909,6 @@ mod tests {
         .unwrap();
         let result = bellman_ford(&m, 0);
         assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_find_neg_cycle1() {
-        let m: Csr<(), _> = Csr::from_sorted_edges(&[
-            (0, 1, 0.5),
-            (0, 2, 2.),
-            (1, 0, 1.),
-            (1, 1, -1.),
-            (1, 2, 1.),
-            (1, 3, 1.),
-            (2, 3, 3.),
-        ])
-        .unwrap();
-        let result = find_negative_cycle(&m, 0);
-        assert_eq!(result, Some([1].to_vec()));
-    }
-
-    #[test]
-    fn test_find_neg_cycle2() {
-        let m: Csr<(), _> = Csr::from_sorted_edges(&[
-            (0, 1, 0.5),
-            (0, 2, 2.),
-            (1, 0, 1.),
-            (1, 2, 1.),
-            (1, 3, 1.),
-            (2, 3, 3.),
-        ])
-        .unwrap();
-        let result = find_negative_cycle(&m, 0);
-        assert_eq!(result, None);
-    }
-
-    #[test]
-    fn test_find_neg_cycle3() {
-        let m: Csr<(), _> = Csr::from_sorted_edges(&[
-            (0, 1, 1.),
-            (0, 2, 1.),
-            (0, 3, 1.),
-            (1, 3, 1.),
-            (2, 1, 1.),
-            (3, 2, -3.),
-        ])
-        .unwrap();
-        let result = find_negative_cycle(&m, 0);
-        assert_eq!(result, Some([1, 3, 2].to_vec()));
-    }
-
-    #[test]
-    fn test_find_neg_cycle4() {
-        let m: Csr<(), _> = Csr::from_sorted_edges(&[(0, 0, -1.)]).unwrap();
-        let result = find_negative_cycle(&m, 0);
-        assert_eq!(result, Some([0].to_vec()));
     }
 
     #[test]
@@ -1129,20 +981,5 @@ mod tests {
         assert_eq!(g.neighbors_slice(c), &[]);
 
         assert_eq!(g.edge_count(), 1);
-    }
-
-    #[test]
-    fn test_node_references() {
-        use crate::visit::IntoNodeReferences;
-        let mut g: Csr<u32> = Csr::new();
-        g.add_node(42);
-        g.add_node(3);
-        g.add_node(44);
-
-        let mut refs = g.node_references();
-        assert_eq!(refs.next(), Some((0, &42)));
-        assert_eq!(refs.next(), Some((1, &3)));
-        assert_eq!(refs.next(), Some((2, &44)));
-        assert_eq!(refs.next(), None);
     }
 }

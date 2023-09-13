@@ -3,7 +3,8 @@
 use std::fmt::{self, Display, Write};
 
 use crate::visit::{
-    EdgeRef, GraphProp, IntoEdgeReferences, IntoNodeReferences, NodeIndexable, NodeRef,
+    Data, EdgeRef, GraphBase, GraphProp, GraphRef, IntoEdgeReferences, IntoNodeReferences,
+    NodeIndexable, NodeRef,
 };
 
 /// `Dot` implements output to graphviz .dot format for a graph.
@@ -52,9 +53,9 @@ where
     G: IntoEdgeReferences + IntoNodeReferences,
 {
     graph: G,
+    config: &'a [Config],
     get_edge_attributes: &'a dyn Fn(G, G::EdgeRef) -> String,
     get_node_attributes: &'a dyn Fn(G, G::NodeRef) -> String,
-    config: Configs,
 }
 
 static TYPE: [&str; 2] = ["graph", "digraph"];
@@ -63,33 +64,31 @@ static INDENT: &str = "    ";
 
 impl<'a, G> Dot<'a, G>
 where
-    G: IntoNodeReferences + IntoEdgeReferences,
+    G: GraphRef + IntoEdgeReferences + IntoNodeReferences,
 {
     /// Create a `Dot` formatting wrapper with default configuration.
-    #[inline]
     pub fn new(graph: G) -> Self {
         Self::with_config(graph, &[])
     }
 
     /// Create a `Dot` formatting wrapper with custom configuration.
-    #[inline]
     pub fn with_config(graph: G, config: &'a [Config]) -> Self {
-        Self::with_attr_getters(graph, config, &|_, _| String::new(), &|_, _| String::new())
+        Self::with_attr_getters(graph, config, &|_, _| "".to_string(), &|_, _| {
+            "".to_string()
+        })
     }
 
-    #[inline]
     pub fn with_attr_getters(
         graph: G,
         config: &'a [Config],
         get_edge_attributes: &'a dyn Fn(G, G::EdgeRef) -> String,
         get_node_attributes: &'a dyn Fn(G, G::NodeRef) -> String,
     ) -> Self {
-        let config = Configs::extract(config);
         Dot {
             graph,
+            config,
             get_edge_attributes,
             get_node_attributes,
-            config,
         }
     }
 }
@@ -97,8 +96,6 @@ where
 /// `Dot` configuration.
 ///
 /// This enum does not have an exhaustive definition (will be expanded)
-// TODO: #[non_exhaustive] once MSRV >= 1.40,
-// and/or for a breaking change make this something like an EnumSet: https://docs.rs/enumset
 #[derive(Debug, PartialEq, Eq)]
 pub enum Config {
     /// Use indices for node labels.
@@ -114,59 +111,38 @@ pub enum Config {
     #[doc(hidden)]
     _Incomplete(()),
 }
-macro_rules! make_config_struct {
-    ($($variant:ident,)*) => {
-        #[allow(non_snake_case)]
-        #[derive(Default)]
-        struct Configs {
-            $($variant: bool,)*
-        }
-        impl Configs {
-            #[inline]
-            fn extract(configs: &[Config]) -> Self {
-                let mut conf = Self::default();
-                for c in configs {
-                    match *c {
-                        $(Config::$variant => conf.$variant = true,)*
-                        Config::_Incomplete(()) => {}
-                    }
-                }
-                conf
-            }
-        }
-    }
-}
-make_config_struct!(
-    NodeIndexLabel,
-    EdgeIndexLabel,
-    EdgeNoLabel,
-    NodeNoLabel,
-    GraphContentOnly,
-);
 
 impl<'a, G> Dot<'a, G>
 where
-    G: IntoNodeReferences + IntoEdgeReferences + NodeIndexable + GraphProp,
+    G: GraphBase + IntoNodeReferences + IntoEdgeReferences,
 {
-    fn graph_fmt<NF, EF>(&self, f: &mut fmt::Formatter, node_fmt: NF, edge_fmt: EF) -> fmt::Result
+    fn graph_fmt<NF, EF, NW, EW>(
+        &self,
+        g: G,
+        f: &mut fmt::Formatter,
+        mut node_fmt: NF,
+        mut edge_fmt: EF,
+    ) -> fmt::Result
     where
-        NF: Fn(&G::NodeWeight, &mut fmt::Formatter) -> fmt::Result,
-        EF: Fn(&G::EdgeWeight, &mut fmt::Formatter) -> fmt::Result,
+        G: NodeIndexable + IntoNodeReferences + IntoEdgeReferences,
+        G: GraphProp + GraphBase,
+        G: Data<NodeWeight = NW, EdgeWeight = EW>,
+        NF: FnMut(&NW, &mut dyn FnMut(&dyn Display) -> fmt::Result) -> fmt::Result,
+        EF: FnMut(&EW, &mut dyn FnMut(&dyn Display) -> fmt::Result) -> fmt::Result,
     {
-        let g = self.graph;
-        if !self.config.GraphContentOnly {
+        if !self.config.contains(&Config::GraphContentOnly) {
             writeln!(f, "{} {{", TYPE[g.is_directed() as usize])?;
         }
 
         // output all labels
         for node in g.node_references() {
             write!(f, "{}{} [ ", INDENT, g.to_index(node.id()),)?;
-            if !self.config.NodeNoLabel {
+            if !self.config.contains(&Config::NodeNoLabel) {
                 write!(f, "label = \"")?;
-                if self.config.NodeIndexLabel {
+                if self.config.contains(&Config::NodeIndexLabel) {
                     write!(f, "{}", g.to_index(node.id()))?;
                 } else {
-                    Escaped(FnFmt(node.weight(), &node_fmt)).fmt(f)?;
+                    node_fmt(node.weight(), &mut |d| Escaped(d).fmt(f))?;
                 }
                 write!(f, "\" ")?;
             }
@@ -182,19 +158,19 @@ where
                 EDGE[g.is_directed() as usize],
                 g.to_index(edge.target()),
             )?;
-            if !self.config.EdgeNoLabel {
+            if !self.config.contains(&Config::EdgeNoLabel) {
                 write!(f, "label = \"")?;
-                if self.config.EdgeIndexLabel {
+                if self.config.contains(&Config::EdgeIndexLabel) {
                     write!(f, "{}", i)?;
                 } else {
-                    Escaped(FnFmt(edge.weight(), &edge_fmt)).fmt(f)?;
+                    edge_fmt(edge.weight(), &mut |d| Escaped(d).fmt(f))?;
                 }
                 write!(f, "\" ")?;
             }
             writeln!(f, "{}]", (self.get_edge_attributes)(g, edge))?;
         }
 
-        if !self.config.GraphContentOnly {
+        if !self.config.contains(&Config::GraphContentOnly) {
             writeln!(f, "}}")?;
         }
         Ok(())
@@ -208,7 +184,7 @@ where
     G::NodeWeight: fmt::Display,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.graph_fmt(f, fmt::Display::fmt, fmt::Display::fmt)
+        self.graph_fmt(self.graph, f, |n, cb| cb(n), |e, cb| cb(e))
     }
 }
 
@@ -219,7 +195,12 @@ where
     G::NodeWeight: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.graph_fmt(f, fmt::Debug::fmt, fmt::Debug::fmt)
+        self.graph_fmt(
+            self.graph,
+            f,
+            |n, cb| cb(&DebugFmt(n)),
+            |e, cb| cb(&DebugFmt(e)),
+        )
     }
 }
 
@@ -264,15 +245,15 @@ where
     }
 }
 
-/// Format data using a specific format function
-struct FnFmt<'a, T, F>(&'a T, F);
+/// Pass Debug formatting to Display
+struct DebugFmt<T>(T);
 
-impl<'a, T, F> fmt::Display for FnFmt<'a, T, F>
+impl<T> fmt::Display for DebugFmt<T>
 where
-    F: Fn(&'a T, &mut fmt::Formatter<'_>) -> fmt::Result,
+    T: fmt::Debug,
 {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        self.1(self.0, f)
+        self.0.fmt(f)
     }
 }
 

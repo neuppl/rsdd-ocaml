@@ -11,7 +11,6 @@ use crate::Graph;
 
 trait_template! {
     /// Access node and edge weights (associated data).
-#[allow(clippy::needless_arbitrary_self_type)]
 pub trait DataMap : Data {
     @section self
     fn node_weight(self: &Self, id: Self::NodeId) -> Option<&Self::NodeWeight>;
@@ -31,7 +30,6 @@ DataMap! {delegate_impl [[G], G, Reversed<G>, access0]}
 
 trait_template! {
     /// Access node and edge weights mutably.
-#[allow(clippy::needless_arbitrary_self_type)]
 pub trait DataMapMut : DataMap {
     @section self
     fn node_weight_mut(self: &mut Self, id: Self::NodeId) -> Option<&mut Self::NodeWeight>;
@@ -398,7 +396,6 @@ impl<N, E, I: ?Sized> ElementIterator<N, E> for I where I: Iterator<Item = Eleme
 /// See [`.filter_elements()`][1] for more information.
 ///
 /// [1]: trait.ElementIterator.html#method.filter_elements
-#[derive(Debug, Clone)]
 pub struct FilterElements<I, F> {
     iter: I,
     node_index: usize,
@@ -473,9 +470,5 @@ where
             }
             return Some(elt);
         }
-    }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        let (_, upper) = self.iter.size_hint();
-        (0, upper)
     }
 }
