@@ -1,5 +1,4 @@
 #[cfg(feature = "arbitrary")]
-#[cfg_attr(docsrs, doc(cfg(feature = "arbitrary")))]
 mod impl_arbitrary {
     use crate::{IndexMap, IndexSet};
     use arbitrary::{Arbitrary, Result, Unstructured};
@@ -36,7 +35,6 @@ mod impl_arbitrary {
 }
 
 #[cfg(feature = "quickcheck")]
-#[cfg_attr(docsrs, doc(cfg(feature = "quickcheck")))]
 mod impl_quickcheck {
     use crate::{IndexMap, IndexSet};
     use alloc::boxed::Box;
