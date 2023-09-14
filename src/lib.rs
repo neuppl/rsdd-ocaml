@@ -52,10 +52,10 @@ pub fn mk_bdd_builder_default_order(num_vars: u64) -> ocaml::Pointer<RsddBddBuil
 }
 
 #[ocaml::func]
-#[ocaml::sig("rsdd_bdd_builder -> bool -> rsdd_bdd_ptr")]
-pub fn bdd_new_var(builder: &'static RsddBddBuilder, polarity: bool) -> ocaml::Pointer<RsddBddPtr> {
-    let (_, ptr) = builder.0.new_var(polarity);
-    RsddBddPtr(ptr).into()
+#[ocaml::sig("rsdd_bdd_builder -> bool -> (int64 * rsdd_bdd_ptr)")]
+pub fn bdd_new_var(builder: &'static RsddBddBuilder, polarity: bool) -> (u64, ocaml::Pointer<RsddBddPtr>) {
+    let (lbl, ptr) = builder.0.new_var(polarity);
+    (lbl.value(), RsddBddPtr(ptr).into())
 }
 
 #[ocaml::func]
