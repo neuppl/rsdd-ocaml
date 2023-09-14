@@ -165,7 +165,7 @@ ocaml::custom!(RsddWmcParamsR);
 #[ocaml::sig("rsdd_bdd_ptr -> rsdd_wmc_params_r -> float")]
 pub fn bdd_wmc(
     bdd: &RsddBddPtr,
-    wmc: &RsddWmcParamsEU,
+    wmc: &RsddWmcParamsR,
 ) -> f64 {
     DDNNFPtr::unsmoothed_wmc(&bdd.0, &wmc.0).0
 }
