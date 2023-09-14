@@ -4,7 +4,7 @@ use rsdd::{
     builder::{bdd::RobddBuilder, cache::AllIteTable, BottomUpBuilder},
     constants::primes,
     repr::{BddPtr, Cnf, DDNNFPtr, PartialModel, VarLabel, VarOrder, WmcParams},
-    util::semirings::{ExpectedUtility, FiniteField, Semiring},
+    util::semirings::{ExpectedUtility, FiniteField, RealSemiring, Semiring},
 };
 
 #[ocaml::sig]
@@ -52,10 +52,13 @@ pub fn mk_bdd_builder_default_order(num_vars: u64) -> ocaml::Pointer<RsddBddBuil
 }
 
 #[ocaml::func]
-#[ocaml::sig("rsdd_bdd_builder -> bool -> rsdd_bdd_ptr")]
-pub fn bdd_new_var(builder: &'static RsddBddBuilder, polarity: bool) -> ocaml::Pointer<RsddBddPtr> {
-    let (_, ptr) = builder.0.new_var(polarity);
-    RsddBddPtr(ptr).into()
+#[ocaml::sig("rsdd_bdd_builder -> bool -> (int64 * rsdd_bdd_ptr)")]
+pub fn bdd_new_var(
+    builder: &'static RsddBddBuilder,
+    polarity: bool,
+) -> (u64, ocaml::Pointer<RsddBddPtr>) {
+    let (lbl, ptr) = builder.0.new_var(polarity);
+    (lbl.value(), RsddBddPtr(ptr).into())
 }
 
 #[ocaml::func]
@@ -153,6 +156,36 @@ pub fn bdd_low(bdd: &RsddBddPtr) -> ocaml::Pointer<RsddBddPtr> {
 #[ocaml::sig("rsdd_bdd_ptr -> rsdd_bdd_ptr")]
 pub fn bdd_high(bdd: &RsddBddPtr) -> ocaml::Pointer<RsddBddPtr> {
     RsddBddPtr(bdd.0.high()).into()
+}
+
+// real semiring
+
+#[ocaml::sig]
+pub struct RsddWmcParamsR(WmcParams<RealSemiring>);
+ocaml::custom!(RsddWmcParamsR);
+
+#[ocaml::func]
+#[ocaml::sig("rsdd_bdd_ptr -> rsdd_wmc_params_r -> float")]
+pub fn bdd_wmc(bdd: &RsddBddPtr, wmc: &RsddWmcParamsR) -> f64 {
+    DDNNFPtr::unsmoothed_wmc(&bdd.0, &wmc.0).0
+}
+
+#[ocaml::func]
+#[ocaml::sig("(float * float) list -> rsdd_wmc_params_r")]
+pub fn new_wmc_params_r(weights: ocaml::List<(f64, f64)>) -> ocaml::Pointer<RsddWmcParamsR> {
+    RsddWmcParamsR(WmcParams::new(HashMap::from_iter(
+        weights
+            .into_linked_list()
+            .iter()
+            .enumerate()
+            .map(|(index, (a, b))| {
+                (
+                    VarLabel::new(index as u64),
+                    (RealSemiring(*a), RealSemiring(*b)),
+                )
+            }),
+    )))
+    .into()
 }
 
 // branch & bound, expected semiring items
