@@ -16,6 +16,8 @@ This is *very* much in progress. Things on the radar:
 
 Currently, this package is not available on opam (but that'll change soon!). In the meantime, you can pin a local version of the package.
 
+Before installing, make sure you have `rust` and `cargo` on your machine. They're available through most package managers of your choice.
+
 First, clone the repo:
 
 ```
