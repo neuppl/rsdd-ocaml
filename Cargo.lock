@@ -396,6 +396,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "rational"
+version = "1.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "31fc9d4c236e72ada45bbd2b743c301f45cb4da4c350b8a73abe2e1e65046d80"
+
+[[package]]
 name = "regex"
 version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -430,13 +436,13 @@ version = "0.1.0"
 dependencies = [
  "ocaml",
  "ocaml-build",
- "rsdd 0.1.0 (git+https://github.com/neuppl/rsdd?rev=c477465)",
+ "rsdd 0.1.0 (git+https://github.com/neuppl/rsdd?rev=1613459)",
 ]
 
 [[package]]
 name = "rsdd"
 version = "0.1.0"
-source = "git+https://github.com/neuppl/rsdd?rev=c477465#c477465dd2f60acdbbaa4e541a1fc9603249d744"
+source = "git+https://github.com/neuppl/rsdd?rev=1613459#16134595d8903b7cc96b4c737af9ac4b275812f6"
 dependencies = [
  "bit-set",
  "bumpalo",
@@ -448,6 +454,7 @@ dependencies = [
  "quickcheck",
  "rand",
  "rand_chacha",
+ "rational",
  "rustc-hash",
  "segment-tree",
  "serde",

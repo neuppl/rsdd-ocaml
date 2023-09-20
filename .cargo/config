@@ -4,9 +4,9 @@ rustflags = ["-C", "link-args=-Wl,-undefined,dynamic_lookup"]
 [source.crates-io]
 replace-with = "vendored-sources"
 
-[source."git+https://github.com/neuppl/rsdd?rev=be8f005"]
+[source."git+https://github.com/neuppl/rsdd?rev=1613459"]
 git = "https://github.com/neuppl/rsdd"
-rev = "be8f005"
+rev = "1613459"
 replace-with = "vendored-sources"
 
 [source.vendored-sources]
