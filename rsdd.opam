@@ -13,7 +13,7 @@ license: "MIT"
 homepage: "https://github.com/neuppl/rsdd-ocaml"
 bug-reports: "https://github.com/neuppl/rsdd-ocaml/issues"
 depends: [
-  "ocaml" {>= "4.08.0"}
+  "ocaml" {>= "4.08.0" & < "5"}
   "dune" {>= "2.7" & >= "3.0"}
   "conf-rust-2021"
   "odoc" {with-doc}

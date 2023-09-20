@@ -14,6 +14,6 @@
  (license "MIT")
  (source (github neuppl/rsdd-ocaml))
  (depends
-  (ocaml (>= "4.08.0"))
+  (ocaml (and (>= "4.08.0") (< "5")))
   (dune (>= "3.0"))
   conf-rust-2021))
