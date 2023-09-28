@@ -9,7 +9,7 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 ocaml = { version = "^1.0.0-beta" }
-rsdd = { git = "https://github.com/neuppl/rsdd", rev = "1613459" }
+rsdd = { git = "https://github.com/minsungc/rsdd-dappl", rev = "a0b49e6" }
 
 [build-dependencies]
 ocaml-build = {version = "^1.0.0-beta"}

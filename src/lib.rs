@@ -198,9 +198,10 @@ pub struct RsddWmcParamsEU(WmcParams<ExpectedUtility>);
 ocaml::custom!(RsddWmcParamsEU);
 
 #[ocaml::func]
-#[ocaml::sig("rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model")]
-pub fn bdd_bb(
+#[ocaml::sig("rsdd_bdd_ptr -> rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model")]
+pub fn bdd_meu(
     bdd: &'static RsddBddPtr,
+    evidence: &'static RsddBddPtr,
     join_vars: ocaml::List<RsddVarLabel>,
     num_vars: u64,
     wmc: &RsddWmcParamsEU,
@@ -208,31 +209,9 @@ pub fn bdd_bb(
     ocaml::Pointer<RsddExpectedUtility>,
     ocaml::Pointer<RsddPartialModel>,
 ) {
-    let (eu, pm) = bdd.0.bb(
+    let (eu, pm) = bdd.0.meu(
+        evidence.0,
         &join_vars
-            .into_linked_list()
-            .iter()
-            .map(|x| x.0)
-            .collect::<Vec<_>>(),
-        num_vars as usize,
-        &wmc.0,
-    );
-    (RsddExpectedUtility(eu).into(), RsddPartialModel(pm).into())
-}
-
-#[ocaml::func]
-#[ocaml::sig("rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model")]
-pub fn bdd_meu(
-    bdd: &'static RsddBddPtr,
-    decision_vars: ocaml::List<RsddVarLabel>,
-    num_vars: u64,
-    wmc: &RsddWmcParamsEU,
-) -> (
-    ocaml::Pointer<RsddExpectedUtility>,
-    ocaml::Pointer<RsddPartialModel>,
-) {
-    let (eu, pm) = bdd.0.bb(
-        &decision_vars
             .into_linked_list()
             .iter()
             .map(|x| x.0)
