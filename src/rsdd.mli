@@ -18,6 +18,7 @@ external bdd_ite: rsdd_bdd_builder -> rsdd_bdd_ptr -> rsdd_bdd_ptr -> rsdd_bdd_p
 external bdd_and: rsdd_bdd_builder -> rsdd_bdd_ptr -> rsdd_bdd_ptr -> rsdd_bdd_ptr = "bdd_and"
 external bdd_or: rsdd_bdd_builder -> rsdd_bdd_ptr -> rsdd_bdd_ptr -> rsdd_bdd_ptr = "bdd_or"
 external bdd_negate: rsdd_bdd_builder -> rsdd_bdd_ptr -> rsdd_bdd_ptr = "bdd_negate"
+external bdd_exactlyone: rsdd_bdd_builder -> int64 list -> rsdd_bdd_ptr = "bdd_exactlyone"
 external bdd_true: rsdd_bdd_builder -> rsdd_bdd_ptr = "bdd_true"
 external bdd_false: rsdd_bdd_builder -> rsdd_bdd_ptr = "bdd_false"
 external bdd_is_true: rsdd_bdd_ptr -> bool = "bdd_is_true"

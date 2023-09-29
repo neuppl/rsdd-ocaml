@@ -33,6 +33,34 @@ pub trait BddBuilder<'a>: BottomUpBuilder<'a, BddPtr<'a>> {
         cur_bdd
     }
 
+    /// Exactly-one constraint that dappl needs
+    fn exactly_one(&'a self, f: &[BddPtr<'a>]) -> BddPtr<'a> {
+      // at_least_one constraint
+      let at_least_one = self.or_lst(f);
+      // generate at_most_one constraint
+      let n = f.len();
+      let mut i = 0;
+      let mut target = BddPtr::true_ptr();
+      while i < n-1 {
+        let mut j = i+1;
+        while j < n {
+          let neg1 = self.negate(f[i]);
+          let neg2 = self.negate(f[j]);
+          let or_neg1_neg2 = self.or(neg1, neg2);
+          target = self.and(target, or_neg1_neg2);
+          j = j+1;
+        }
+        i = i+1;
+      }
+      self.and(target, at_least_one)
+    }
+
+    fn exactly_one_of_varlabels(&'a self, f: &[VarLabel]) -> BddPtr<'a> {
+      let varlabel_to_ptr = |x : VarLabel| self.var(x, true);
+      let f2 : Vec<_>= f.iter().map(|x| varlabel_to_ptr(*x)).collect();
+      self.exactly_one(&f2)
+    }
+
     fn compile_cnf_with_assignments(&'a self, cnf: &Cnf, assgn: &PartialModel) -> BddPtr<'a> {
         let clauses = cnf.clauses();
         if clauses.is_empty() {

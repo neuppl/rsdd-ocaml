@@ -7,3 +7,9 @@ let () =
       (cnf_from_dimacs "\n    p cnf 6 3\n1 2 3 4 0\n-2 -3 4 5 0\n-4 -5 6 6 0\n") in
   let model_count = bdd_model_count robdd_builder bdd in
   print_endline (Int64.to_string model_count)
+
+let () = 
+  let builder = mk_bdd_builder_default_order 5L in 
+  let bdd = bdd_exactlyone builder [0L; 1L; 2L ; 3L; 4L] in
+  let mc = bdd_model_count builder bdd in 
+  print_endline (Int64.to_string mc)

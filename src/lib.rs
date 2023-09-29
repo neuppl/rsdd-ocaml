@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use rsdd::{
-    builder::{bdd::RobddBuilder, cache::AllIteTable, BottomUpBuilder},
+    builder::{bdd::{RobddBuilder, BddBuilder}, cache::AllIteTable, BottomUpBuilder},
     constants::primes,
     repr::{BddPtr, Cnf, DDNNFPtr, PartialModel, VarLabel, VarOrder, WmcParams},
     util::semirings::{ExpectedUtility, FiniteField, RealSemiring, Semiring},
@@ -39,6 +39,7 @@ unsafe impl ocaml::FromValue for RsddVarLabel {
         RsddVarLabel(VarLabel::new(i as u64))
     }
 }
+
 
 // disc/dice interface
 
@@ -99,6 +100,16 @@ pub fn bdd_negate(
     bdd: &RsddBddPtr,
 ) -> ocaml::Pointer<RsddBddPtr> {
     RsddBddPtr(builder.0.negate(bdd.0)).into()
+}
+
+#[ocaml::func]
+#[ocaml::sig("rsdd_bdd_builder -> int64 list -> rsdd_bdd_ptr")]
+pub fn bdd_exactlyone(
+    builder: &'static RsddBddBuilder,
+    l : ocaml::List<i64>,
+) -> ocaml::Pointer<RsddBddPtr> {
+    let l_of_varlabels : Vec<_> = l.into_vec().iter().map(|x| VarLabel::new_usize(*x as usize)).collect();
+    RsddBddPtr(builder.0.exactly_one_of_varlabels(&l_of_varlabels)).into()
 }
 
 #[ocaml::func]
