@@ -71,6 +71,16 @@ pub fn mk_varlabel(
 }
 
 #[ocaml::func]
+#[ocaml::sig("rsdd_bdd_builder -> rsdd_var_label -> bool -> rsdd_bdd_ptr")]
+pub fn bdd_var(
+    builder: &'static RsddBddBuilder,
+    lbl : RsddVarLabel,
+    polarity : bool,
+) -> ocaml::Pointer<RsddBddPtr> {
+    RsddBddPtr(builder.0.var(lbl.0, polarity)).into()
+}
+
+#[ocaml::func]
 #[ocaml::sig("rsdd_bdd_builder -> rsdd_bdd_ptr -> rsdd_bdd_ptr -> rsdd_bdd_ptr -> rsdd_bdd_ptr")]
 pub fn bdd_ite(
     builder: &'static RsddBddBuilder,
