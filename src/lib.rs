@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use ocaml::FromValue;
 use rsdd::{
     builder::{bdd::{RobddBuilder, BddBuilder}, cache::AllIteTable, BottomUpBuilder},
     constants::primes,
@@ -61,6 +60,14 @@ pub fn bdd_new_var(
 ) -> (u64, ocaml::Pointer<RsddBddPtr>) {
     let (lbl, ptr) = builder.0.new_var(polarity);
     (lbl.value(), RsddBddPtr(ptr).into())
+}
+
+#[ocaml::func]
+#[ocaml::sig("int64 -> rsdd_var_label")]
+pub fn mk_varlabel(
+    i : i64
+) -> RsddVarLabel {
+    RsddVarLabel(VarLabel::new(i as u64))
 }
 
 #[ocaml::func]
