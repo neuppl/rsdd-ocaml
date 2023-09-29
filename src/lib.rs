@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ocaml::FromValue;
 use rsdd::{
     builder::{bdd::{RobddBuilder, BddBuilder}, cache::AllIteTable, BottomUpBuilder},
     constants::primes,
@@ -201,12 +202,24 @@ pub fn new_wmc_params_r(weights: ocaml::List<(f64, f64)>) -> ocaml::Pointer<Rsdd
 
 // branch & bound, expected semiring items
 #[ocaml::sig]
+#[derive(ocaml::ToValue, ocaml::FromValue)]
 pub struct RsddExpectedUtility(ExpectedUtility);
 ocaml::custom!(RsddExpectedUtility);
 
 #[ocaml::sig]
 pub struct RsddWmcParamsEU(WmcParams<ExpectedUtility>);
 ocaml::custom!(RsddWmcParamsEU);
+
+
+#[ocaml::func]
+#[ocaml::sig("rsdd_expected_utility -> float * float")]
+pub fn extract(
+    eu : RsddExpectedUtility
+) -> (f64, f64) {
+  let v = eu.0 ;
+  (v.0, v.1)
+}
+
 
 #[ocaml::func]
 #[ocaml::sig("rsdd_bdd_ptr -> rsdd_bdd_ptr -> rsdd_var_label list -> int64 -> rsdd_wmc_params_e_u -> rsdd_expected_utility * rsdd_partial_model")]
@@ -217,7 +230,7 @@ pub fn bdd_meu(
     num_vars: u64,
     wmc: &RsddWmcParamsEU,
 ) -> (
-    ocaml::Pointer<RsddExpectedUtility>,
+    RsddExpectedUtility,
     ocaml::Pointer<RsddPartialModel>,
 ) {
     let (eu, pm) = bdd.0.meu(
@@ -230,7 +243,7 @@ pub fn bdd_meu(
         num_vars as usize,
         &wmc.0,
     );
-    (RsddExpectedUtility(eu).into(), RsddPartialModel(pm).into())
+    (RsddExpectedUtility(eu), RsddPartialModel(pm).into())
 }
 
 #[ocaml::func]

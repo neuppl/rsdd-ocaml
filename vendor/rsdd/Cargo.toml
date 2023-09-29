@@ -90,6 +90,9 @@ version = "4.2.1"
 features = ["derive"]
 optional = true
 
+[dependencies.ocaml]
+version = "^1.0.0-beta"
+
 [dependencies.serde]
 version = "1.0"
 features = ["derive"]

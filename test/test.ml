@@ -13,3 +13,12 @@ let () =
   let bdd = bdd_exactlyone builder [0L; 1L; 2L ; 3L; 4L] in
   let mc = bdd_model_count builder bdd in 
   print_endline (Int64.to_string mc)
+
+let () = 
+  let builder = mk_bdd_builder_default_order 0L in 
+  let (_, ptr) = bdd_new_var builder true in 
+  let param = new_wmc_params_eu [(1.0, 1234.0), (142.0, 2.0)] in
+  let (asdf, _) = bdd_meu ptr (bdd_true builder) [] 0L param in
+  let (a,_) = (extract asdf) in
+  let asdfasdfasdf = Float.to_string a in 
+  print_endline(asdfasdfasdf)
