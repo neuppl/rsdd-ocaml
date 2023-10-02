@@ -436,13 +436,13 @@ version = "0.1.0"
 dependencies = [
  "ocaml",
  "ocaml-build",
- "rsdd 0.1.0 (git+https://github.com/minsungc/rsdd-dappl?rev=d8491c7)",
+ "rsdd 0.1.0 (git+https://github.com/minsungc/rsdd-dappl?rev=e6ede39)",
 ]
 
 [[package]]
 name = "rsdd"
 version = "0.1.0"
-source = "git+https://github.com/minsungc/rsdd-dappl?rev=d8491c7#d8491c7364926a1f2dbcc3f83721156a57cda030"
+source = "git+https://github.com/minsungc/rsdd-dappl?rev=e6ede39#e6ede393925a2ed0c92822ed6731ca712c024ea1"
 dependencies = [
  "bit-set",
  "bumpalo",
