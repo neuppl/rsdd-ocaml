@@ -231,7 +231,7 @@ pub fn bdd_meu(
     ocaml::Pointer<RsddExpectedUtility>,
     ocaml::Pointer<RsddPartialModel>,
 ) {
-    let (eu, pm) = bdd.0.bb(
+    let (eu, pm) = bdd.0.meu(
         &decision_vars
             .into_linked_list()
             .iter()
