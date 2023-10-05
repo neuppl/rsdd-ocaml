@@ -15,5 +15,5 @@
  (source (github neuppl/rsdd-ocaml))
  (depends
   (ocaml (and (>= "4.08.0") (< "5")))
-  (dune (>= "2.7"))
+  dune
   conf-rust-2021))

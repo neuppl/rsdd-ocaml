@@ -1,0 +1,3 @@
+x-ci-accept-failures: [
+	  "freebsd" # cargo (and thus conf-rust-2021) is not available
+]
