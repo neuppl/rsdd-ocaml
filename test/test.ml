@@ -34,7 +34,10 @@ let () =
                                  ((1.0, 0.0), (1.0, 5.0));
                                  ((1.0, 0.0), (1.0, 4.0));
                                  ((1.0, 0.0), (1.0, 0.0));] in
-  let (asdf, _) = bdd_meu total (bdd_true builder) sdfsdf 3L param in
+  let (asdf, _, total_size, times_pruned, avg_size) = bdd_meu total (bdd_true builder) sdfsdf 3L param in
   let (a,b) = (extract asdf) in
   let asdfasdfasdf = String.concat " " [(Float.to_string a);(Float.to_string b)] in 
-  print_endline(asdfasdfasdf)
+  let asdf' = "Total size: " ^ (Int64.to_string total_size) in
+  let asdf'2 = "Times pruned " ^ (Int64.to_string times_pruned) in
+  let asdf'3 = "Avg size: " ^ (Float.to_string avg_size) in
+  print_endline(asdfasdfasdf) ; print_endline(asdf') ; print_endline(asdf'2); print_endline(asdf'3)
